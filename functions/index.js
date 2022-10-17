@@ -35,7 +35,6 @@ exports.authQuote = functions.region('australia-southeast1').https.onRequest(asy
         { linkMode: 'authorize' }
     );
 
-    // store verifier
     await dbRefQuote.set({ token: auth.oauth_token, secretToken: auth.oauth_token_secret });
 
     response.redirect(auth.url);
@@ -96,19 +95,18 @@ exports.tweetMeme = functions.region('australia-southeast1').runWith({ memory: "
     });
     
     const clt = await client.currentUser();
-
+    //console.log(clt.screen_name); @thing
     let meme = await getMeme();
 
     const response = await axios.get(meme.image, { responseType: 'arraybuffer' })
     const buffer = Buffer.from(response.data, "utf-8")
 
     const mediaId = await client.v1.uploadMedia(buffer, { mimeType: 'image/png' })
-    console.log(mediaId)
-    const { data } = await client.v1.tweet(
+    const tweet = await client.v1.tweet(
         `${meme.title}`, { media_ids: [mediaId] }
     );
+    await client.v2.like(clt.id_str, tweet.id+"");
 
-    //response.send(data);
 });
 
 
@@ -124,12 +122,13 @@ exports.tweetQuote = functions.region('australia-southeast1').pubsub.schedule('e
     });
 
     const clt = await client.currentUser();
+    //console.log(clt.screen_name); @thing
 
     let quote = "";
     let author = "";
     let hashtags = "";
     axios.get('https://api.quotable.io/random').then(async(e) => {
-
+    
     
     e.data.tags.forEach(element => {
         hashtags += `#${element.replace('-','_')} `
@@ -137,12 +136,10 @@ exports.tweetQuote = functions.region('australia-southeast1').pubsub.schedule('e
 
     quote = e.data.content;
     author = e.data.author;
-    const { data } = await client.v2.tweet(
+    const tweet = await client.v1.tweet(
         `"${quote}"\n-${author}\n\n#quote #inspiration ${hashtags}`
      );
+     await client.v2.like(clt.id_str, tweet.data.id);
 }).catch((e) => { console.log(e); })
 
-    
-
-    //response.send(data);
 });

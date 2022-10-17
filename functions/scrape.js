@@ -43,7 +43,7 @@ const getMeme = async () => {
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36'
       );
 
-      const subReddits = ['memes', 'MemeEconomy', 'wholesomememes', 'dankmemes', 'ProgrammerHumor', 'dogmemes', 'AnimalMemes', 'funny']
+      const subReddits = ['memes', 'MemeEconomy', 'wholesomememes', 'dankmemes', 'dogmemes', 'AnimalMemes', 'funny']
       const categories = ['hot', 'new', 'top/?t=hour', 'top/?t=day', 'top/?t=week', 'top/?t=month']
   
       await page.goto(`https://www.reddit.com/r/${subReddits[Math.floor(Math.random() * subReddits.length)]}/${categories[Math.floor(Math.random() * categories.length)]}`, {
@@ -51,13 +51,10 @@ const getMeme = async () => {
       });
   
       const storySelector = '.Post';
-  
-      // Only get the top 10 headlines
+
       let divs = await page.$$eval(storySelector, (e) => e.map((n) => n.innerHTML));
 
-      let index = Math.floor(Math.random() * divs.length)
-
-      let dom = new JSDOM(divs[index]);
+      let dom = new JSDOM(divs[Math.floor(Math.random() * divs.length)]);
       let title = dom.window.document.querySelector('._eYtD2XCVieq6emjKBH3m');
       let image = dom.window.document.querySelector('.ImageBox-image');
       let url = dom.window.document.querySelector('a._2INHSNB8V5eaWp4P0rY_mE');
@@ -65,8 +62,7 @@ const getMeme = async () => {
      
 
       while(!title || !title.innerHTML || !image || !image.src || !url || !url.href) {
-        index = Math.floor(Math.random() * divs.length)
-        dom = new JSDOM(divs[index]);
+        dom = new JSDOM(divs[Math.floor(Math.random() * divs.length)]);
         title = dom.window.document.querySelector('._eYtD2XCVieq6emjKBH3m');
       image = dom.window.document.querySelector('.ImageBox-image');
       url = dom.window.document.querySelector('a._2INHSNB8V5eaWp4P0rY_mE');
