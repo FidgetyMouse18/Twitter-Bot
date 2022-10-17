@@ -132,7 +132,7 @@ exports.tweetQuote = functions.region('australia-southeast1').pubsub.schedule('e
 
     
     e.data.tags.forEach(element => {
-        hashtags += `#${element} `
+        hashtags += `#${element.replace('-','_')} `
     });
 
     quote = e.data.content;
