@@ -44,7 +44,7 @@ const getMeme = async () => {
       );
 
       const subReddits = ['memes', 'MemeEconomy', 'wholesomememes', 'dankmemes', 'dogmemes', 'AnimalMemes', 'funny']
-      const categories = ['hot', 'new', 'top/?t=hour', 'top/?t=day', 'top/?t=week', 'top/?t=month']
+      const categories = ['hot', 'new', 'top/?t=hour', 'top/?t=day']
   
       await page.goto(`https://www.reddit.com/r/${subReddits[Math.floor(Math.random() * subReddits.length)]}/${categories[Math.floor(Math.random() * categories.length)]}`, {
         waitUntil: 'domcontentloaded',

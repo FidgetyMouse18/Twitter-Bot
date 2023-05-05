@@ -83,8 +83,43 @@ exports.callbackQuote = functions.region('australia-southeast1').https.onRequest
     await dbRefQuote.set({ token: result.accessToken, secretToken: result.accessSecret });
 });
 
-exports.tweetMeme = functions.region('australia-southeast1').runWith({ memory: "512MB", timeoutSeconds: 60 }).pubsub.schedule('every 60 minutes').onRun(async (context) => {
-    const dbSnapshot = await dbRefMeme.get();
+
+exports.tweet = functions.region('australia-southeast1').runWith({ memory: "512MB", timeoutSeconds: 60 }).pubsub.schedule('every 60 minutes').onRun(async (context) => {
+    const quoteRun = async() => {
+        const dbSnapshot = await dbRefQuote.get();
+        const { secretToken, token } = dbSnapshot.data();
+    
+        const client = new TwitterApi({
+            appKey: config.quoteConfig.appKey,
+            appSecret: config.quoteConfig.appSecret,
+            accessToken: token,
+            accessSecret: secretToken,
+        });
+    
+        const clt = await client.currentUser();
+        //console.log(clt.screen_name); @thing
+    
+        let quote = "";
+        let author = "";
+        let hashtags = "";
+        axios.get('https://api.quotable.io/random').then(async(e) => {
+        
+        
+        e.data.tags.forEach(element => {
+            hashtags += `#${element.replace('-','_')} `
+        });
+    
+        quote = e.data.content;
+        author = e.data.author;
+        const tweet = await client.v1.tweet(
+            `"${quote}"\n-${author}\n\n#quote #inspiration ${hashtags}`
+         );
+         //await client.v2.like(clt.id_str, tweet.data.id);
+    }).catch((e) => { console.log(e); })
+    }
+
+    const memeRun = async() => {
+        const dbSnapshot = await dbRefMeme.get();
     const { secretToken, token } = dbSnapshot.data();
 
     const client = new TwitterApi({
@@ -105,41 +140,9 @@ exports.tweetMeme = functions.region('australia-southeast1').runWith({ memory: "
     const tweet = await client.v1.tweet(
         `${meme.title}`, { media_ids: [mediaId] }
     );
-    await client.v2.like(clt.id_str, tweet.id+"");
+    //await client.v2.like(clt.id_str, tweet.id+"");
+    }
 
-});
-
-
-exports.tweetQuote = functions.region('australia-southeast1').pubsub.schedule('every 60 minutes').onRun(async (context) => {
-    const dbSnapshot = await dbRefQuote.get();
-    const { secretToken, token } = dbSnapshot.data();
-
-    const client = new TwitterApi({
-        appKey: config.quoteConfig.appKey,
-        appSecret: config.quoteConfig.appSecret,
-        accessToken: token,
-        accessSecret: secretToken,
-    });
-
-    const clt = await client.currentUser();
-    //console.log(clt.screen_name); @thing
-
-    let quote = "";
-    let author = "";
-    let hashtags = "";
-    axios.get('https://api.quotable.io/random').then(async(e) => {
-    
-    
-    e.data.tags.forEach(element => {
-        hashtags += `#${element.replace('-','_')} `
-    });
-
-    quote = e.data.content;
-    author = e.data.author;
-    const tweet = await client.v1.tweet(
-        `"${quote}"\n-${author}\n\n#quote #inspiration ${hashtags}`
-     );
-     await client.v2.like(clt.id_str, tweet.data.id);
-}).catch((e) => { console.log(e); })
-
+    await memeRun();
+    //await quoteRun();
 });
