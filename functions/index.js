@@ -4,6 +4,8 @@ const admin = require('firebase-admin')
 const getMeme = require("./scrape");
 const axios = require('axios');
 const config = require("./config")
+const amazon = require("./amazon scraper/scrape")
+require('dotenv').config();
 admin.initializeApp();
 
 const dbRefMeme = admin.firestore().doc('tokens/meme')
@@ -85,64 +87,108 @@ exports.callbackQuote = functions.region('australia-southeast1').https.onRequest
 
 
 exports.tweet = functions.region('australia-southeast1').runWith({ memory: "512MB", timeoutSeconds: 60 }).pubsub.schedule('every 60 minutes').onRun(async (context) => {
-    const quoteRun = async() => {
+    const quoteRun = async () => {
         const dbSnapshot = await dbRefQuote.get();
         const { secretToken, token } = dbSnapshot.data();
-    
+
         const client = new TwitterApi({
             appKey: config.quoteConfig.appKey,
             appSecret: config.quoteConfig.appSecret,
             accessToken: token,
             accessSecret: secretToken,
         });
-    
+
         const clt = await client.currentUser();
         //console.log(clt.screen_name); @thing
-    
+
         let quote = "";
         let author = "";
         let hashtags = "";
-        axios.get('https://api.quotable.io/random').then(async(e) => {
-        
-        
-        e.data.tags.forEach(element => {
-            hashtags += `#${element.replace('-','_')} `
-        });
-    
-        quote = e.data.content;
-        author = e.data.author;
-        const tweet = await client.v1.tweet(
-            `"${quote}"\n-${author}\n\n#quote #inspiration ${hashtags}`
-         );
-         //await client.v2.like(clt.id_str, tweet.data.id);
-    }).catch((e) => { console.log(e); })
+        axios.get('https://api.quotable.io/random').then(async (e) => {
+
+
+            e.data.tags.forEach(element => {
+                hashtags += `#${element.replace('-', '_')} `
+            });
+
+            quote = e.data.content;
+            author = e.data.author;
+            const tweet = await client.v1.tweet(
+                `"${quote}"\n-${author}\n\n#quote #inspiration ${hashtags}`
+            );
+            //await client.v2.like(clt.id_str, tweet.data.id);
+        }).catch((e) => { console.log(e); })
     }
 
-    const memeRun = async() => {
+    const memeRun = async () => {
         const dbSnapshot = await dbRefMeme.get();
-    const { secretToken, token } = dbSnapshot.data();
+        const { secretToken, token } = dbSnapshot.data();
 
-    const client = new TwitterApi({
-        appKey: config.memeConfig.appKey,
-        appSecret: config.memeConfig.appSecret,
-        accessToken: token,
-        accessSecret: secretToken,
-    });
-    
-    const clt = await client.currentUser();
-    //console.log(clt.screen_name); @thing
-    let meme = await getMeme();
+        const client = new TwitterApi({
+            appKey: config.memeConfig.appKey,
+            appSecret: config.memeConfig.appSecret,
+            accessToken: token,
+            accessSecret: secretToken,
+        });
 
-    const response = await axios.get(meme.image, { responseType: 'arraybuffer' })
-    const buffer = Buffer.from(response.data, "utf-8")
+        const clt = await client.currentUser();
+        //console.log(clt.screen_name); @thing
+        let meme = await getMeme();
 
-    const mediaId = await client.v1.uploadMedia(buffer, { mimeType: 'image/png' })
-    const tweet = await client.v1.tweet(
-        `${meme.title}`, { media_ids: [mediaId] }
-    );
-    //await client.v2.like(clt.id_str, tweet.id+"");
+        const response = await axios.get(meme.image, { responseType: 'arraybuffer' })
+        const buffer = Buffer.from(response.data, "utf-8")
+
+        const mediaId = await client.v1.uploadMedia(buffer, { mimeType: 'image/png' })
+        const tweet = await client.v1.tweet(
+            `${meme.title}`, { media_ids: [mediaId] }
+        );
+        //await client.v2.like(clt.id_str, tweet.id+"");
     }
 
     await memeRun();
     //await quoteRun();
+});
+
+exports.tweetSponsor = functions.region('australia-southeast1').runWith({ memory: "512MB", timeoutSeconds: 60 }).pubsub.schedule('At 09:00').onRun(async (context) => {
+    const memeRun = async () => {
+        const dbSnapshot = await dbRefMeme.get();
+        const { secretToken, token } = dbSnapshot.data();
+
+        const client = new TwitterApi({
+            appKey: config.memeConfig.appKey,
+            appSecret: config.memeConfig.appSecret,
+            accessToken: token,
+            accessSecret: secretToken,
+        });
+
+        const clt = await client.currentUser();
+        //console.log(clt.screen_name); @thing
+        //let meme = await getMeme();
+        const categories = await amazon.getCategories();
+        const products = {};
+        for (const category of categories) {
+            console.log(category);
+            const product = await amazon.scrapeProducts(category);
+            let finalCategoryProducts = [];
+
+            finalCategoryProducts.push(product);
+            console.log(product);
+            console.log("");
+
+            products[category.name] = finalCategoryProducts;
+        }
+
+        for (let category in products) {
+            let categoryItems = products[key];
+            for (let product in categoryItems) {
+
+                const tweet = await client.v1.tweet(
+                    `${product.title} ${product.url}?tag=${process.env.AMAZON_TAG} #${category} #amazon #product #notsponsored #affiliate`);
+            }
+
+        }
+
+    }
+
+    await memeRun();
 });
